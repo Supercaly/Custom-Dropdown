@@ -1,0 +1,18 @@
+name: custom_dropdown
+description: A simple dropdown library with custom style.
+version: 0.0.1
+repository: https://github.com/Supercaly/Custom-Dropdown
+issue_tracker: https://github.com/Supercaly/Custom-Dropdown/issues
+
+environment:
+  sdk: ">=2.7.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
