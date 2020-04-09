@@ -17,7 +17,20 @@ enum DropdownPosition {
   bottom,
 }
 
+/// A Custom implementation of a dropdown with unique style.
 ///
+/// The [onChanged] callback should update a state variable that defines the
+/// dropdown's value. It should also call [State.setState] to rebuild the
+/// dropdown with the new value.
+///
+/// If the [onChanged] callback is null or the list of [items] is null
+/// then the dropdown will be disabled, i.e. it will not respond to input.
+///
+/// Requires one of its ancestors to be a [Material] widget.
+///
+/// See also:
+///
+///  * [DropdownItem], the class used to represent the [items].
 class CustomDropdown extends StatefulWidget {
 
   /// Called when the user selects an item.
@@ -110,16 +123,21 @@ class CustomDropdown extends StatefulWidget {
   CustomDropdownState createState() => CustomDropdownState();
 }
 
+/// Constant elevation value for closed dropdown
+const double _kClosedElevation = 4;
+/// Constant elevation value for open dropdown
+const double _kOpenElevation = 8;
+
 class CustomDropdownState extends State<CustomDropdown> {
   GlobalKey _dropdownKey = GlobalKey();
   OverlayEntry _dropdownOverlay;
+  DropdownPosition _dropdownPosition;
   bool _isOpen = false;
   bool _isEnabled;
   // Size of the dropdown
   double _width, _height;
   // Absolute position of the dropdown
   double _xPosition, _yPosition;
-  DropdownPosition _dropdownPosition;
 
   @override
   void initState() {
@@ -133,7 +151,7 @@ class CustomDropdownState extends State<CustomDropdown> {
       : _isEnabled = true;
   }
 
-  // Find the absolute dropdown's position and dimensions
+  /// Find the absolute dropdown's position and dimensions
   void _findDropdownPosition() {
     RenderBox renderBox = _dropdownKey.currentContext.findRenderObject();
     _width = renderBox.size.width;
@@ -158,7 +176,7 @@ class CustomDropdownState extends State<CustomDropdown> {
     print("$_width, $_height, $_xPosition, $_yPosition, $_dropdownPosition");
   }
 
-  // Create the floating dropdown overlay
+  /// Create the floating dropdown overlay
   OverlayEntry _createFloatingDropdown() => OverlayEntry(
     builder: (context) => Positioned(
       left: _xPosition,
@@ -181,6 +199,7 @@ class CustomDropdownState extends State<CustomDropdown> {
     ),
   );
 
+  /// Get a [BorderRadius] depending on the state
   BorderRadius get _borderRadius {
     if (_isOpen) {
       return _dropdownPosition == DropdownPosition.top
@@ -188,6 +207,20 @@ class CustomDropdownState extends State<CustomDropdown> {
         : BorderRadius.vertical(top: Radius.circular(9));
     } else
       return BorderRadius.circular(9);
+  }
+
+  /// Get elevation depending on the state of the dropdown
+  double get _dropdownBoxShadow {
+    if (_isEnabled) {
+      if (_isOpen) {
+        if (_dropdownPosition == DropdownPosition.top)
+          return _kOpenElevation;
+        else
+          return 0.0;
+      } else
+        return _kClosedElevation;
+    } else
+      return 0.0;
   }
 
   @override
@@ -210,6 +243,13 @@ class CustomDropdownState extends State<CustomDropdown> {
         decoration: BoxDecoration(
           color: _isEnabled? widget.enabledColor: widget.disabledColor,
           borderRadius: _borderRadius,
+          boxShadow: [
+            BoxShadow(
+              blurRadius: _dropdownBoxShadow,
+              offset: Offset(0.0, _dropdownBoxShadow),
+              color: Colors.grey
+            ),
+          ],
         ),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Row(
@@ -241,6 +281,13 @@ class CustomDropdownState extends State<CustomDropdown> {
   }
 }
 
+/// Widget that builds the floating dropdown overlay.
+///
+/// This Widget is responsible to create the dropdown
+/// floating menu every time the dropdown is open.
+/// This menu has a [onValueSelected] callback, used to
+/// pass upwards the on value changed event, from his children
+/// to the [CustomDropdown].
 class _FloatingDropdown extends StatelessWidget {
   final List<DropdownItem> items;
   final double itemHeight;
@@ -263,7 +310,8 @@ class _FloatingDropdown extends StatelessWidget {
     return Container(
       height: (items.length * itemHeight),
       child: Material(
-        elevation: 20,
+        // If the overlay is on bottom display an elevation
+        elevation: position == DropdownPosition.top? 0: _kOpenElevation,
         color: openColor,
         borderRadius: _bgBorderRadius,
         child: ColumnBuilder(
@@ -302,6 +350,10 @@ class _FloatingDropdown extends StatelessWidget {
         );
 }
 
+/// Build each single dropdown element.
+///
+/// This Widget is responsible of the creation of
+/// a single dropdown menu element.
 class _DropdownItemWidget extends StatelessWidget {
   final DropdownItem item;
   final double itemHeight;
@@ -333,9 +385,18 @@ class _DropdownItemWidget extends StatelessWidget {
   }
 }
 
-/// A single dropdown item
+/// A single item in [CustomDropdown].
+///
+/// The item has a [String] text field which will be used
+/// as value by the dropdown.
+///
+/// See also:
+///
+/// * [CustomDropdown]
 class DropdownItem {
   final String text;
 
-  DropdownItem({this.text});
+  DropdownItem({
+    @required this.text
+  });
 }
