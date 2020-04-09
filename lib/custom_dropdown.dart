@@ -172,8 +172,6 @@ class CustomDropdownState extends State<CustomDropdown> {
         _yPosition - overlayHeight > 0)
       ? DropdownPosition.top
       : DropdownPosition.bottom;
-
-    print("$_width, $_height, $_xPosition, $_yPosition, $_dropdownPosition");
   }
 
   /// Create the floating dropdown overlay
