@@ -17,6 +17,7 @@ enum DropdownPosition {
   bottom,
 }
 
+///
 class CustomDropdown extends StatefulWidget {
 
   /// Called when the user selects an item.
@@ -69,7 +70,11 @@ class CustomDropdown extends StatefulWidget {
   /// Text [Color] of each dropdown item
   final Color elementTextColor;
 
+  /// Creates a custom dropdown.
   ///
+  /// The [items] must have distinct values. If [value] isn't null then it
+  /// must be equal to one of the [DropdownItem] values. If [items] or
+  /// [onChanged] is null, the button will be disabled.
   CustomDropdown({
     Key key,
     @required this.onChanged,
@@ -78,18 +83,28 @@ class CustomDropdown extends StatefulWidget {
     this.value,
     this.enabledColor = Colors.red,
     this.disabledColor = Colors.brown,
-    this.openColor = Colors.lightGreen,
+    this.openColor = Colors.green,
     this.openIcon = const Icon(Icons.keyboard_arrow_up),
     this.closedIcon = const Icon(Icons.keyboard_arrow_down),
     this.enabledIconColor = Colors.black,
     this.disabledIconColor = Colors.grey,
     this.itemHeight = 42,
-    this.valueTextColor = const Color(0xFFBFBFBF),
+    this.valueTextColor = Colors.black,
     this.disabledTextColor = Colors.grey,
-    this.elementTextColor = const Color(0xFF666666),
-  }): assert(items == null ||
-    items.length > 0, "Items length must be greater than 0"),
-      super(key: key);
+    this.elementTextColor = Colors.black,
+  }):assert(hint != null, "The hint text must be non-null!"),
+    assert(
+      items == null || items.length > 0,
+      "You must specify at least one item!"
+    ),
+    assert(
+      value == null ||
+        (items != null && items.where((element) => element.text == value).length == 1),
+        'There should be exactly one item with value: $value. \n'
+        'Either zero or 2 or more [DropdownItem]s were detected '
+        'with the same value.'
+    ),
+    super(key: key);
 
   @override
   CustomDropdownState createState() => CustomDropdownState();
