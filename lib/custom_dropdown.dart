@@ -94,9 +94,9 @@ class CustomDropdown extends StatefulWidget {
     @required this.hint,
     @required this.items,
     this.value,
-    this.enabledColor = Colors.red,
-    this.disabledColor = Colors.brown,
-    this.openColor = Colors.green,
+    this.enabledColor = Colors.white,
+    this.disabledColor = Colors.grey,
+    this.openColor = Colors.white,
     this.openIcon = const Icon(Icons.keyboard_arrow_up),
     this.closedIcon = const Icon(Icons.keyboard_arrow_down),
     this.enabledIconColor = Colors.black,
@@ -129,19 +129,17 @@ const double _kClosedElevation = 4;
 const double _kOpenElevation = 8;
 
 class CustomDropdownState extends State<CustomDropdown> {
-  GlobalKey _dropdownKey = GlobalKey();
+  FocusNode _focusNode = FocusNode();
+  LayerLink _layerLink = LayerLink();
   OverlayEntry _dropdownOverlay;
   DropdownPosition _dropdownPosition;
   bool _isOpen = false;
   bool _isEnabled;
-  // Size of the dropdown
-  double _width, _height;
-  // Absolute position of the dropdown
-  double _xPosition, _yPosition;
 
   @override
   void initState() {
     super.initState();
+    _focusNode.addListener(_handleFocusChange);
     /*
      * If the onChanged is null or the list of items
      * is null the dropdown is disabled
@@ -151,14 +149,30 @@ class CustomDropdownState extends State<CustomDropdown> {
       : _isEnabled = true;
   }
 
-  /// Find the absolute dropdown's position and dimensions
-  void _findDropdownPosition() {
-    RenderBox renderBox = _dropdownKey.currentContext.findRenderObject();
-    _width = renderBox.size.width;
-    _height = renderBox.size.height;
-    Offset offset = renderBox.localToGlobal(Offset.zero);
-    _xPosition = offset.dx;
-    _yPosition = offset.dy;
+  @override
+  void dispose() {
+    super.dispose();
+    _focusNode.removeListener(_handleFocusChange);
+    _focusNode.dispose();
+  }
+
+  void _handleFocusChange() {
+    setState(() => _isOpen = !_isOpen);
+    if (_focusNode.hasPrimaryFocus) {
+      _dropdownOverlay = _createDropdownOverlay();
+      Overlay.of(context).insert(_dropdownOverlay);
+    } else {
+      _dropdownOverlay.remove();
+    }
+  }
+
+  /// Create the floating dropdown overlay
+  OverlayEntry _createDropdownOverlay() {
+    final RenderBox renderBox = context.findRenderObject();
+    final double width = renderBox.size.width;
+    final double height = renderBox.size.height;
+    final Offset offset = renderBox.localToGlobal(Offset.zero);
+    final double yPosition = offset.dy;
 
     /*
      * Find the dropdown position based on the space left in the screen.
@@ -167,35 +181,39 @@ class CustomDropdownState extends State<CustomDropdown> {
      */
     final screenHeight = MediaQuery.of(context).size.height;
     final overlayHeight = widget.items.length * widget.itemHeight;
-    _dropdownPosition =
-      (screenHeight - (_yPosition + _height + overlayHeight) <= 0 &&
-        _yPosition - overlayHeight > 0)
-      ? DropdownPosition.top
-      : DropdownPosition.bottom;
-  }
+    _dropdownPosition = (screenHeight - (yPosition + height + overlayHeight) <= 0 &&
+      yPosition - overlayHeight > 0) ? DropdownPosition.top : DropdownPosition.bottom;
 
-  /// Create the floating dropdown overlay
-  OverlayEntry _createFloatingDropdown() => OverlayEntry(
-    builder: (context) => Positioned(
-      left: _xPosition,
-      width: _width,
-      top: (_dropdownPosition == DropdownPosition.bottom)? _yPosition + _height: _yPosition - (widget.itemHeight * widget.items.length),
-      child: _FloatingDropdown(
-        openColor: widget.openColor,
-        items: widget.items,
-        itemHeight: widget.itemHeight,
-        onValueSelected: (newValue) {
-          // Close the dropdown overlay
-          setState(() => _isOpen = false);
-          _dropdownOverlay.remove();
-          // Notify that the value is changed
-          widget?.onChanged(newValue);
-        },
-        position: _dropdownPosition,
-        openTextColor: widget.elementTextColor,
-      ),
-    ),
-  );
+    // Create the dropdown overlay
+    return OverlayEntry(
+      builder: (context) =>
+        Positioned(
+          width: width,
+          child: CompositedTransformFollower(
+            link: _layerLink,
+            showWhenUnlinked: false,
+            offset: Offset(
+              0.0,
+              (_dropdownPosition == DropdownPosition.bottom)
+                ? height
+                : -(widget.itemHeight * widget.items.length)
+            ),
+            child: _DropdownOverlay(
+              openColor: widget.openColor,
+              items: widget.items,
+              itemHeight: widget.itemHeight,
+              onValueSelected: (newValue) {
+                // Close the dropdown overlay by un-focusing
+                _focusNode.unfocus();
+                widget?.onChanged(newValue);
+              },
+              position: _dropdownPosition,
+              openTextColor: widget.elementTextColor,
+            ),
+          ),
+        ),
+    );
+  }
 
   /// Get a [BorderRadius] depending on the state
   BorderRadius get _borderRadius {
@@ -223,70 +241,73 @@ class CustomDropdownState extends State<CustomDropdown> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      key: _dropdownKey,
-      onTap: () {
-        // If the dropdown is disabled don't do anything
-        if (!_isEnabled) return;
-        if (_isOpen)
-          _dropdownOverlay.remove();
-        else {
-          _findDropdownPosition();
-          _dropdownOverlay = _createFloatingDropdown();
-          Overlay.of(context).insert(_dropdownOverlay);
-        }
-        setState(() => _isOpen = !_isOpen);
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: _isEnabled? widget.enabledColor: widget.disabledColor,
-          borderRadius: _borderRadius,
-          boxShadow: [
-            BoxShadow(
-              blurRadius: _dropdownBoxShadow,
-              offset: Offset(0.0, _dropdownBoxShadow),
-              color: Colors.grey
+    return Focus(
+      canRequestFocus: _isEnabled,
+      focusNode: _focusNode,
+      autofocus: false,
+      child: CompositedTransformTarget(
+        link: _layerLink,
+        child: GestureDetector(
+          onTap: () {
+            // If the dropdown is disabled don't do anything
+            if (!_isEnabled) return;
+            if (_isOpen)
+              _focusNode.unfocus();
+            else
+              _focusNode.requestFocus();
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              color: _isEnabled? widget.enabledColor: widget.disabledColor,
+              borderRadius: _borderRadius,
+              boxShadow: [
+                BoxShadow(
+                  blurRadius: _dropdownBoxShadow,
+                  offset: Offset(0.0, _dropdownBoxShadow),
+                  color: Colors.black
+                ),
+              ],
             ),
-          ],
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Row(
-          children: <Widget>[
-            Text(
-              // If the value is not-null and the dropdown is enabled display the
-              // selected value, otherwise display the hint
-              (widget.value != null && _isEnabled)
-                ? widget.value
-                : widget.hint,
-              style: TextStyle(
-                color: _isEnabled? widget.valueTextColor: widget.disabledTextColor,
-                fontSize: 14,
-                fontWeight: FontWeight.w500
-              ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Row(
+              children: <Widget>[
+                Text(
+                  // If the value is not-null and the dropdown is enabled display the
+                  // selected value, otherwise display the hint
+                  (widget.value != null && _isEnabled)
+                    ? widget.value
+                    : widget.hint,
+                  style: TextStyle(
+                    color: _isEnabled? widget.valueTextColor: widget.disabledTextColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500
+                  ),
+                ),
+                Spacer(),
+                IconTheme(
+                  data: IconThemeData(
+                    size: 24,
+                    color: _isEnabled? widget.enabledIconColor: widget.disabledIconColor,
+                  ),
+                  child: _isOpen? widget.openIcon: widget.closedIcon,
+                ),
+              ],
             ),
-            Spacer(),
-            IconTheme(
-              data: IconThemeData(
-                size: 24,
-                color: _isEnabled? widget.enabledIconColor: widget.disabledIconColor,
-              ),
-              child: _isOpen? widget.openIcon: widget.closedIcon,
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// Widget that builds the floating dropdown overlay.
+/// Widget that builds the dropdown overlay.
 ///
 /// This Widget is responsible to create the dropdown
-/// floating menu every time the dropdown is open.
+/// overlay menu every time is open.
 /// This menu has a [onValueSelected] callback, used to
 /// pass upwards the on value changed event, from his children
 /// to the [CustomDropdown].
-class _FloatingDropdown extends StatelessWidget {
+class _DropdownOverlay extends StatelessWidget {
   final List<DropdownItem> items;
   final double itemHeight;
   final ValueChanged<String> onValueSelected;
@@ -294,7 +315,7 @@ class _FloatingDropdown extends StatelessWidget {
   final Color openTextColor;
   final DropdownPosition position;
 
-  _FloatingDropdown({
+  _DropdownOverlay({
     @required this.items,
     @required this.itemHeight,
     @required this.onValueSelected,
@@ -309,7 +330,7 @@ class _FloatingDropdown extends StatelessWidget {
       height: (items.length * itemHeight),
       child: Material(
         // If the overlay is on bottom display an elevation
-        elevation: position == DropdownPosition.top? 0: _kOpenElevation,
+        elevation: 0,//position == DropdownPosition.top? 0: _kOpenElevation,
         color: openColor,
         borderRadius: _bgBorderRadius,
         child: ColumnBuilder(
