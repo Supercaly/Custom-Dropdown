@@ -269,7 +269,7 @@ class CustomDropdownState extends State<CustomDropdown> {
                   // If the value is not-null and the dropdown is enabled display the
                   // selected value, otherwise display the hint
                   (widget.valueIndex != null && _isEnabled)
-                    ? widget.valueIndex
+                    ? widget.items[widget.valueIndex].text
                     : widget.hint,
                   style: TextStyle(
                     color: _isEnabled? widget.valueTextColor: widget.disabledTextColor,
