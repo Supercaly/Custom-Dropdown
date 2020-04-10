@@ -75,15 +75,15 @@ class CustomDropdown extends StatefulWidget {
   /// [Color] of the [Icon] when the dropdown is disabled
   final Color disabledIconColor;
 
-  /// Height of each items
-  final double itemHeight;
-
   /// Text [Color] of the value
-  final Color valueTextColor;
+  final Color enableTextColor;
   /// Text [Color] of the value when the dropdown is disabled
   final Color disabledTextColor;
   /// Text [Color] of each dropdown item
   final Color elementTextColor;
+
+  /// Border radius of the dropdown
+  final double borderRadius;
 
   /// Creates a custom dropdown.
   ///
@@ -97,16 +97,16 @@ class CustomDropdown extends StatefulWidget {
     @required this.items,
     this.valueIndex,
     this.enabledColor = Colors.white,
-    this.disabledColor = Colors.grey,
-    this.openColor = Colors.white,
+    this.disabledColor = const Color(0xFFE0E0E0),
+    this.openColor = const Color(0xFFF2F2F2),
     this.openIcon = const Icon(Icons.keyboard_arrow_up),
     this.closedIcon = const Icon(Icons.keyboard_arrow_down),
-    this.enabledIconColor = Colors.black,
-    this.disabledIconColor = Colors.grey,
-    this.itemHeight = 42,
-    this.valueTextColor = Colors.black,
-    this.disabledTextColor = Colors.grey,
-    this.elementTextColor = Colors.black,
+    this.enabledIconColor = const Color(0xFF6200EE),
+    this.disabledIconColor = const Color(0xFF757575),
+    this.enableTextColor = const Color(0xFF757575),
+    this.disabledTextColor = const Color(0xFF757575),
+    this.elementTextColor = const Color(0xFF272727),
+    this.borderRadius = _kBorderRadius,
   }):assert(hint != null, "The hint text must be non-null!"),
     assert(
       items == null || items.length > 0,
@@ -126,16 +126,27 @@ class CustomDropdown extends StatefulWidget {
 const double _kClosedElevation = 4;
 /// Constant elevation value for open dropdown
 const double _kOpenElevation = 8;
+/// Constant height of each item
+const double _kItemHeight = 42;
+/// Constant border radius
+const double _kBorderRadius = 9;
 
 class CustomDropdownState extends State<CustomDropdown> {
   FocusNode _focusNode = FocusNode();
   LayerLink _layerLink = LayerLink();
+  bool _isOpen = false;
   OverlayEntry _dropdownOverlay;
   DropdownPosition _dropdownPosition;
-  bool _isOpen = false;
 
   // The dropdown is enabled if onChanged and the list of items are non-null
   bool get _isEnabled => (widget.onChanged != null && widget.items != null);
+
+  // If the value is not-null and the dropdown is enabled display the
+  // selected value, otherwise display the hint
+  String get _valueText =>
+    (widget.valueIndex != null && _isEnabled)
+      ? widget.items[widget.valueIndex].text
+      : widget.hint;
 
   @override
   void initState() {
@@ -156,7 +167,7 @@ class CustomDropdownState extends State<CustomDropdown> {
       _dropdownOverlay = _createDropdownOverlay();
       Overlay.of(context).insert(_dropdownOverlay);
     } else {
-      _dropdownOverlay.remove();
+      _dropdownOverlay?.remove();
     }
   }
 
@@ -174,7 +185,7 @@ class CustomDropdownState extends State<CustomDropdown> {
      * at the top, set top as position, else set bottom.
      */
     final screenHeight = MediaQuery.of(context).size.height;
-    final overlayHeight = widget.items.length * widget.itemHeight;
+    final overlayHeight = (widget.items.length * _kItemHeight) + height;
     _dropdownPosition = (screenHeight - (yPosition + height + overlayHeight) <= 0 &&
       yPosition - overlayHeight > 0) ? DropdownPosition.top : DropdownPosition.bottom;
 
@@ -189,48 +200,33 @@ class CustomDropdownState extends State<CustomDropdown> {
             offset: Offset(
               0.0,
               (_dropdownPosition == DropdownPosition.bottom)
-                ? height
-                : -(widget.itemHeight * widget.items.length)
+                ? 0.0
+                : -overlayHeight + height
             ),
-            child: _DropdownOverlay(
-              openColor: widget.openColor,
+            child: DropdownData(
               items: widget.items,
-              itemHeight: widget.itemHeight,
-              onValueSelected: (newValue) {
-                // Close the dropdown overlay by un-focusing
-                _focusNode.unfocus();
-                widget?.onChanged(newValue);
-              },
               position: _dropdownPosition,
-              openTextColor: widget.elementTextColor,
+              openColor: widget.openColor,
+              enabledColor: widget.enabledColor,
+              enableTextColor: widget.enableTextColor,
+              elementTextColor: widget.elementTextColor,
+              openIcon: widget.openIcon,
+              enabledIconColor: widget.enabledIconColor,
+              borderRadius: widget.borderRadius,
+              child: _DropdownOverlay(
+                valueText: _valueText,
+                height: overlayHeight,
+                onClose: () => _focusNode.unfocus(),
+                onValueSelected: (newValue) {
+                  // Close the dropdown overlay by un-focusing
+                  _focusNode.unfocus();
+                  widget?.onChanged(newValue);
+                },
+              ),
             ),
           ),
         ),
     );
-  }
-
-  /// Get a [BorderRadius] depending on the state
-  BorderRadius get _borderRadius {
-    if (_isOpen) {
-      return _dropdownPosition == DropdownPosition.top
-        ? BorderRadius.vertical(bottom: Radius.circular(9))
-        : BorderRadius.vertical(top: Radius.circular(9));
-    } else
-      return BorderRadius.circular(9);
-  }
-
-  /// Get elevation depending on the state of the dropdown
-  double get _dropdownBoxShadow {
-    if (_isEnabled) {
-      if (_isOpen) {
-        if (_dropdownPosition == DropdownPosition.top)
-          return _kOpenElevation;
-        else
-          return 0.0;
-      } else
-        return _kClosedElevation;
-    } else
-      return 0.0;
   }
 
   @override
@@ -245,52 +241,90 @@ class CustomDropdownState extends State<CustomDropdown> {
           onTap: () {
             // If the dropdown is disabled don't do anything
             if (!_isEnabled) return;
+            // request the focus/un-focus if is open
             if (_isOpen)
               _focusNode.unfocus();
             else
               _focusNode.requestFocus();
           },
-          child: Container(
-            decoration: BoxDecoration(
-              color: _isEnabled? widget.enabledColor: widget.disabledColor,
-              borderRadius: _borderRadius,
-              boxShadow: [
-                BoxShadow(
-                  blurRadius: _dropdownBoxShadow,
-                  offset: Offset(0.0, _dropdownBoxShadow),
-                  color: Colors.black
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Row(
-              children: <Widget>[
-                Text(
-                  // If the value is not-null and the dropdown is enabled display the
-                  // selected value, otherwise display the hint
-                  (widget.valueIndex != null && _isEnabled)
-                    ? widget.items[widget.valueIndex].text
-                    : widget.hint,
-                  style: TextStyle(
-                    color: _isEnabled? widget.valueTextColor: widget.disabledTextColor,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500
+          child: Material(
+            elevation: (!_isEnabled || _isOpen)? 0.0: _kClosedElevation,
+            borderRadius: BorderRadius.circular(widget.borderRadius),
+            color: _isEnabled? widget.enabledColor: widget.disabledColor,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Row(
+                children: <Widget>[
+                  Text(
+                    _valueText,
+                    style: TextStyle(
+                      color: _isEnabled? widget.enableTextColor: widget.disabledTextColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500
+                    ),
                   ),
-                ),
-                Spacer(),
-                IconTheme(
-                  data: IconThemeData(
-                    size: 24,
-                    color: _isEnabled? widget.enabledIconColor: widget.disabledIconColor,
+                  Spacer(),
+                  IconTheme(
+                    data: IconThemeData(
+                      size: 24,
+                      color: _isEnabled? widget.enabledIconColor: widget.disabledIconColor,
+                    ),
+                    child: widget.closedIcon,
                   ),
-                  child: _isOpen? widget.openIcon: widget.closedIcon,
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+}
+
+/// Provider of dropdown data.
+///
+/// This class implements an [InheritedWidget]
+/// to pass to his child some data of the dropdown.
+class DropdownData extends InheritedWidget {
+  final List<DropdownItem> items;
+  final Color enabledColor;
+  final Color openColor;
+  final Icon openIcon;
+  final Color enabledIconColor;
+  final Color enableTextColor;
+  final Color elementTextColor;
+  final DropdownPosition position;
+  final double borderRadius;
+
+  DropdownData({
+    Key key,
+    Widget child,
+    this.items,
+    this.enabledColor,
+    this.openColor,
+    this.openIcon,
+    this.enabledIconColor,
+    this.enableTextColor,
+    this.elementTextColor,
+    this.position,
+    this.borderRadius,
+  }): super(key: key, child: child);
+
+  static DropdownData of(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<DropdownData>();
+  }
+
+  @override
+  bool updateShouldNotify(DropdownData oldWidget) {
+    return items != oldWidget.items ||
+      enabledColor != oldWidget.enabledColor ||
+      openColor != oldWidget.openColor ||
+      openIcon != oldWidget.openIcon ||
+      enabledIconColor != oldWidget.enabledIconColor ||
+      enableTextColor != oldWidget.enableTextColor ||
+      elementTextColor != oldWidget.elementTextColor ||
+      position != oldWidget.position ||
+      borderRadius != oldWidget.borderRadius;
   }
 }
 
@@ -302,63 +336,95 @@ class CustomDropdownState extends State<CustomDropdown> {
 /// pass upwards the on value changed event, from his children
 /// to the [CustomDropdown].
 class _DropdownOverlay extends StatelessWidget {
-  final List<DropdownItem> items;
-  final double itemHeight;
+  final String valueText;
+  final double height;
   final ValueChanged<int> onValueSelected;
-  final Color openColor;
-  final Color openTextColor;
-  final DropdownPosition position;
+  final VoidCallback onClose;
 
   _DropdownOverlay({
-    @required this.items,
-    @required this.itemHeight,
-    @required this.onValueSelected,
-    @required this.openColor,
-    @required this.openTextColor,
-    @required this.position,
+    this.valueText,
+    this.height,
+    this.onValueSelected,
+    this.onClose,
   });
 
   @override
   Widget build(BuildContext context) {
+    final dropdownData = DropdownData.of(context);
     return Container(
-      height: (items.length * itemHeight),
+      height: height,
       child: Material(
         // If the overlay is on bottom display an elevation
-        elevation: 0,//position == DropdownPosition.top? 0: _kOpenElevation,
-        color: openColor,
-        borderRadius: _bgBorderRadius,
-        child: ColumnBuilder(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            return InkWell(
-              borderRadius: _getInkWellBorderRadius(index),
-              onTap: () => onValueSelected(index),
-              child: _DropdownItemWidget(
-                item: items[index],
-                itemHeight: itemHeight,
-                openTextColor: openTextColor,
-              ),
-            );
-          }
+        elevation: _kOpenElevation,
+        color: dropdownData.openColor,
+        borderRadius: BorderRadius.circular(dropdownData.borderRadius),
+        child: Column(
+          children: dropdownData.position == DropdownPosition.top
+            ? [_getDropdownItems(context), _getDropdownBody(context)]
+            : [_getDropdownBody(context), _getDropdownItems(context)]
         ),
       ),
     );
   }
 
-  BorderRadius get _bgBorderRadius =>
-    (position == DropdownPosition.top)
-      ? BorderRadius.vertical(top: Radius.circular(9))
-      : BorderRadius.vertical(bottom: Radius.circular(9));
+  /// Create the overlay-ed body of the dropdown.
+  Widget _getDropdownBody(BuildContext context) {
+    final dropdownData = DropdownData.of(context);
+    return GestureDetector(
+      onTap: onClose,
+      child: Container(
+        decoration: BoxDecoration(
+          color: dropdownData.enabledColor,
+          borderRadius: dropdownData.position == DropdownPosition.top
+            ? BorderRadius.vertical(bottom: Radius.circular(dropdownData.borderRadius))
+            : BorderRadius.vertical(top: Radius.circular(dropdownData.borderRadius)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          children: <Widget>[
+            Text(
+              valueText,
+              style: TextStyle(
+                color: dropdownData.enableTextColor,
+                fontSize: 14,
+                fontWeight: FontWeight.w500
+              ),
+            ),
+            Spacer(),
+            IconTheme(
+              data: IconThemeData(
+                size: 24,
+                color: dropdownData.enabledIconColor,
+              ),
+              child: dropdownData.openIcon,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-  BorderRadius _getInkWellBorderRadius(int index) =>
-    (position == DropdownPosition.top)
-      ? BorderRadius.vertical(
-          top: (index == 0)? Radius.circular(9): Radius.zero
-        )
-      : BorderRadius.vertical(
-          bottom: (index == items.length - 1)? Radius.circular(9): Radius.zero
+  /// Create the dropdown items
+  Widget _getDropdownItems(BuildContext context) {
+    final dropdownData = DropdownData.of(context);
+    return ColumnBuilder(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      itemCount: dropdownData.items.length,
+      itemBuilder: (context, index) {
+        return InkWell(
+          borderRadius: (dropdownData.position == DropdownPosition.top)
+            ? BorderRadius.vertical(top: (index == 0)
+              ? Radius.circular(dropdownData.borderRadius)
+              : Radius.zero)
+            : BorderRadius.vertical(bottom: (index == dropdownData.items.length - 1)
+              ? Radius.circular(dropdownData.borderRadius)
+              : Radius.zero),
+          onTap: () => onValueSelected(index),
+          child: _DropdownItemWidget(dropdownData.items[index]),
         );
+      }
+    );
+  }
 }
 
 /// Build each single dropdown element.
@@ -367,26 +433,20 @@ class _DropdownOverlay extends StatelessWidget {
 /// a single dropdown menu element.
 class _DropdownItemWidget extends StatelessWidget {
   final DropdownItem item;
-  final double itemHeight;
-  final Color openTextColor;
 
-  _DropdownItemWidget({
-    @required this.item,
-    @required this.itemHeight,
-    @required this.openTextColor,
-  });
+  _DropdownItemWidget(this.item);
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: itemHeight,
+      height: _kItemHeight,
       padding: const EdgeInsets.only(left: 20),
       child: Align(
         alignment: Alignment.centerLeft,
         child: Text(
           item.text,
           style: TextStyle(
-            color: openTextColor,
+            color: DropdownData.of(context).elementTextColor,
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
