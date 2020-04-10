@@ -35,9 +35,11 @@ class CustomDropdown extends StatefulWidget {
 
   /// Called when the user selects an item.
   ///
+  /// When the user selects an item this callback is fired with the index
+  /// of that item.
   /// If the [onChanged] callback is null or the list of [items] is null
   /// then the dropdown button will be disabled.
-  final ValueChanged<String> onChanged;
+  final ValueChanged<int> onChanged;
 
   /// The list of items the user can select
   ///
@@ -45,14 +47,14 @@ class CustomDropdown extends StatefulWidget {
   /// then the dropdown button will be disabled.
   final List<DropdownItem> items;
 
-  /// Current selected value
+  /// Index of the current selected value
   ///
-  /// If the [value] is null, the [hint] is displayed.
-  final String value;
+  /// If the [valueIndex] is null, the [hint] is displayed.
+  final int valueIndex;
 
   /// A placeholder text that is displayed by the dropdown
   ///
-  /// If the dropdown is disabled or the [value] is null
+  /// If the dropdown is disabled or the [valueIndex] is null
   /// this text will be displayed as a placeholder
   final String hint;
 
@@ -85,15 +87,15 @@ class CustomDropdown extends StatefulWidget {
 
   /// Creates a custom dropdown.
   ///
-  /// The [items] must have distinct values. If [value] isn't null then it
-  /// must be equal to one of the [DropdownItem] values. If [items] or
-  /// [onChanged] is null, the button will be disabled.
+  /// If [valueIndex] isn't null then it must be the index
+  /// of one [DropdownItem]. If [items] or [onChanged] is
+  /// null the button will be disabled.
   CustomDropdown({
     Key key,
     @required this.onChanged,
     @required this.hint,
     @required this.items,
-    this.value,
+    this.valueIndex,
     this.enabledColor = Colors.white,
     this.disabledColor = Colors.grey,
     this.openColor = Colors.white,
@@ -111,11 +113,8 @@ class CustomDropdown extends StatefulWidget {
       "You must specify at least one item!"
     ),
     assert(
-      value == null ||
-        (items != null && items.where((element) => element.text == value).length == 1),
-        'There should be exactly one item with value: $value. \n'
-        'Either zero or 2 or more [DropdownItem]s were detected '
-        'with the same value.'
+      valueIndex == null || (items != null && valueIndex >= 0 && valueIndex < items.length),
+      'The given value index: $valueIndex is outside the items list range.'
     ),
     super(key: key);
 
@@ -134,19 +133,14 @@ class CustomDropdownState extends State<CustomDropdown> {
   OverlayEntry _dropdownOverlay;
   DropdownPosition _dropdownPosition;
   bool _isOpen = false;
-  bool _isEnabled;
+
+  // The dropdown is enabled if onChanged and the list of items are non-null
+  bool get _isEnabled => (widget.onChanged != null && widget.items != null);
 
   @override
   void initState() {
     super.initState();
     _focusNode.addListener(_handleFocusChange);
-    /*
-     * If the onChanged is null or the list of items
-     * is null the dropdown is disabled
-     */
-    (widget.onChanged == null || widget.items == null)
-      ? _isEnabled = false
-      : _isEnabled = true;
   }
 
   @override
@@ -274,8 +268,8 @@ class CustomDropdownState extends State<CustomDropdown> {
                 Text(
                   // If the value is not-null and the dropdown is enabled display the
                   // selected value, otherwise display the hint
-                  (widget.value != null && _isEnabled)
-                    ? widget.value
+                  (widget.valueIndex != null && _isEnabled)
+                    ? widget.valueIndex
                     : widget.hint,
                   style: TextStyle(
                     color: _isEnabled? widget.valueTextColor: widget.disabledTextColor,
@@ -310,7 +304,7 @@ class CustomDropdownState extends State<CustomDropdown> {
 class _DropdownOverlay extends StatelessWidget {
   final List<DropdownItem> items;
   final double itemHeight;
-  final ValueChanged<String> onValueSelected;
+  final ValueChanged<int> onValueSelected;
   final Color openColor;
   final Color openTextColor;
   final DropdownPosition position;
@@ -339,9 +333,7 @@ class _DropdownOverlay extends StatelessWidget {
           itemBuilder: (context, index) {
             return InkWell(
               borderRadius: _getInkWellBorderRadius(index),
-              onTap: () {
-                onValueSelected(items[index].text);
-              },
+              onTap: () => onValueSelected(index),
               child: _DropdownItemWidget(
                 item: items[index],
                 itemHeight: itemHeight,
