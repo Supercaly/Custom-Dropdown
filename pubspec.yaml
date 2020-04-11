@@ -1,6 +1,7 @@
 name: custom_dropdown
 description: A simple dropdown library with custom style.
-version: 0.0.1
+version: 0.0.2
+homepage: https://github.com/Supercaly/Custom-Dropdown
 repository: https://github.com/Supercaly/Custom-Dropdown
 issue_tracker: https://github.com/Supercaly/Custom-Dropdown/issues
 

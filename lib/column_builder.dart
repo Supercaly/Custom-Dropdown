@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 /// Widgets that builds a [Column] with dynamic children
@@ -41,9 +40,7 @@ class ColumnBuilder extends StatelessWidget {
       textBaseline: textBaseline,
       verticalDirection: verticalDirection,
       children: new List.generate(
-        this.itemCount,
-          (index) => this.itemBuilder(context, index)
-      ).toList(),
+          this.itemCount, (index) => this.itemBuilder(context, index)).toList(),
     );
   }
 }

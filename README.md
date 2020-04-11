@@ -17,10 +17,10 @@ class TestWidgetState extends State<TestWidget> {
         valueIndex: _checkboxValue,
         hint: "Hint",
         items: [
-          DropdownItem(text: "first"),
-          DropdownItem(text: "second"),
-          DropdownItem(text: "third"),
-          DropdownItem(text: "fourth"),
+          CustomDropdownItem(text: "first"),
+          CustomDropdownItem(text: "second"),
+          CustomDropdownItem(text: "third"),
+          CustomDropdownItem(text: "fourth"),
         ],
         onChanged: (newValue) {
           setState(() => _checkboxValue = newValue);
