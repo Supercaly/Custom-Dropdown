@@ -30,7 +30,7 @@ enum DropdownPosition {
 ///
 /// See also:
 ///
-///  * [DropdownItem], the class used to represent the [items].
+///  * [CustomDropdownItem], the class used to represent the [items].
 class CustomDropdown extends StatefulWidget {
 
   /// Called when the user selects an item.
@@ -45,7 +45,7 @@ class CustomDropdown extends StatefulWidget {
   ///
   /// If the [onChanged] callback is null or the list of items is null
   /// then the dropdown button will be disabled.
-  final List<DropdownItem> items;
+  final List<CustomDropdownItem> items;
 
   /// Index of the current selected value
   ///
@@ -88,7 +88,7 @@ class CustomDropdown extends StatefulWidget {
   /// Creates a custom dropdown.
   ///
   /// If [valueIndex] isn't null then it must be the index
-  /// of one [DropdownItem]. If [items] or [onChanged] is
+  /// of one [CustomDropdownItem]. If [items] or [onChanged] is
   /// null the button will be disabled.
   CustomDropdown({
     Key key,
@@ -286,7 +286,7 @@ class CustomDropdownState extends State<CustomDropdown> {
 /// This class implements an [InheritedWidget]
 /// to pass to his child some data of the dropdown.
 class DropdownData extends InheritedWidget {
-  final List<DropdownItem> items;
+  final List<CustomDropdownItem> items;
   final Color enabledColor;
   final Color openColor;
   final Icon openIcon;
@@ -432,7 +432,7 @@ class _DropdownOverlay extends StatelessWidget {
 /// This Widget is responsible of the creation of
 /// a single dropdown menu element.
 class _DropdownItemWidget extends StatelessWidget {
-  final DropdownItem item;
+  final CustomDropdownItem item;
 
   _DropdownItemWidget(this.item);
 
@@ -464,10 +464,78 @@ class _DropdownItemWidget extends StatelessWidget {
 /// See also:
 ///
 /// * [CustomDropdown]
-class DropdownItem {
+class CustomDropdownItem {
   final String text;
 
-  DropdownItem({
+  CustomDropdownItem({
     @required this.text
   });
+}
+
+/// A convenience widget that wraps a [CustomDropdown] in a [FormField].
+class CustomDropdownFormField extends FormField<int> {
+  CustomDropdownFormField({
+    Key key,
+    int value,
+    @required List<CustomDropdownItem> items,
+    String hint,
+    @required this.onChanged,
+    FormFieldSetter<int> onSaved,
+    FormFieldValidator<int> validator,
+    bool autovalidate = false,
+    Icon openIcon,
+    Icon closedIcon,
+    Color enabledColor,
+    Color openColor,
+    Color disabledColor,
+    Color enabledIconColor,
+    Color disabledIconColor,
+    Color elementTextColor,
+    Color enableTextColor,
+    Color disabledTextColor,
+    double borderRadius,
+  }): super(
+    key: key,
+    onSaved: onSaved,
+    initialValue: value,
+    validator: validator,
+    autovalidate: autovalidate,
+    builder: (FormFieldState<int> field) {
+      final _CustomDropdownFormFieldState state = field as _CustomDropdownFormFieldState;
+      return CustomDropdown(
+        onChanged: onChanged == null? null: state.didChange,
+        hint: hint,
+        items: items,
+        valueIndex: state.value,
+        openIcon: openIcon ?? const Icon(Icons.keyboard_arrow_up),
+        closedIcon: closedIcon ?? const Icon(Icons.keyboard_arrow_down),
+        enabledColor: enabledColor ?? Colors.white,
+        openColor: openColor ?? const Color(0xFFF2F2F2),
+        disabledColor: disabledColor ?? const Color(0xFFE0E0E0),
+        enabledIconColor: enabledIconColor ?? const Color(0xFF6200EE),
+        disabledIconColor: disabledIconColor ?? const Color(0xFF757575),
+        elementTextColor: elementTextColor ?? const Color(0xFF272727),
+        enableTextColor: enableTextColor ?? const Color(0xFF757575),
+        disabledTextColor: disabledTextColor ?? const Color(0xFF757575),
+        borderRadius: borderRadius ?? 9,
+      );
+    },
+  );
+
+  final ValueChanged<int> onChanged;
+
+  @override
+  FormFieldState<int> createState() => _CustomDropdownFormFieldState();
+}
+
+class _CustomDropdownFormFieldState extends FormFieldState<int> {
+  @override
+  CustomDropdownFormField get widget => super.widget as CustomDropdownFormField;
+
+  @override
+  void didChange(int value) {
+    super.didChange(value);
+    assert(widget.onChanged != null);
+    widget.onChanged(value);
+  }
 }
